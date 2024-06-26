@@ -1,5 +1,6 @@
 # Import pandas
 import pandas as pd
+import geopandas as gpd
 
 # American Community Survey Racial Data 2013-2022
 bg2013 = pd.read_csv('Data/ACSDT5Y2013.B03002-Data.csv')
@@ -14,16 +15,10 @@ bg2021 = pd.read_csv('Data/ACSDT5Y2021.B03002-Data.csv')
 bg2022 = pd.read_csv('Data/ACSDT5Y2022.B03002-Data.csv')
 import pandas as pd
 
-# Function to Clean
+# Function to Clean CSV
 def clean_csv(df, year):
-    
-    # Drop the first row
     df = df.iloc[1:]
-
-    # Remove first 9 values from GEO_ID
     df['GEO_ID'] = df['GEO_ID'].str[9:]
-
-    # Keep only Racial Columns + Rename
     df = df[['GEO_ID', 'B03002_001E', 'B03002_003E', 'B03002_004E', 'B03002_005E', 'B03002_006E', 'B03002_007E', 'B03002_008E', 'B03002_009E', 'B03002_012E']]
     df.rename(columns={
         'B03002_001E': 'Total Population',
@@ -34,22 +29,13 @@ def clean_csv(df, year):
         'B03002_007E': 'Native Hawaiian and Other Pacific Islander Population',
         'B03002_012E': 'Hispanic or Latino Population'
     }, inplace=True)
-
-    # Consolidate extra race data
     df['Some other race'] = df['B03002_008E'].astype(float) + df['B03002_009E'].astype(float)
-
-    # Drop columns used to consolidate
     df.drop(columns=['B03002_008E', 'B03002_009E'], inplace=True)
-
-    # Convert columns to integers
     int_columns = ['Total Population', 'White Population', 'Black Population', 'American Indian Population',
                    'Asian Population', 'Native Hawaiian and Other Pacific Islander Population', 
                    'Hispanic or Latino Population', 'Some other race']
     df[int_columns] = df[int_columns].astype(int)
-    
-    # Add the year column
     df['Year'] = year
-
     return df
 
 # List of DataFrames with corresponding years
@@ -59,7 +45,6 @@ dfs_with_years = [
     (bg2021, 2021), (bg2022, 2022)
 ]
 
-# There is two different shapefile one for the 2010's and one for the 2020's, so create two DF to house year/race info
 df_2010s = pd.DataFrame()
 df_2020s = pd.DataFrame()
 for df, year in dfs_with_years:
@@ -69,14 +54,20 @@ for df, year in dfs_with_years:
     else:
         df_2020s = pd.concat([df_2020s, cleaned_df])
 
-# Test
-print("Processed 2013-2019 DataFrame:")
-print(df_2010s.head())
-print("Processed 2020-2022 DataFrame:")
-print(df_2020s.head())
+# Read shapefiles
+shapefile_2019 = gpd.read_file('Data/NC_blck_grp_2019.shp')
+shapefile_2023 = gpd.read_file('Data/NC_blck_grp_2022.shp')
 
-# Export df_2010s to a CSV file
-df_2010s.to_csv('processed_2010s_data.csv', index=False)
+# Merge the 2010s data with the 2019 shapefile
+merged_2010s = pd.merge(shapefile_2019, df_2010s, left_on='GEOID', right_on='GEO_ID', how='inner')
 
-# Export df_2020s to a CSV file
-df_2020s.to_csv('processed_2020s_data.csv', index=False)
+# Merge the 2020s data with the 2023 shapefile
+merged_2020s = pd.merge(shapefile_2023, df_2020s, left_on='GEOID', right_on='GEO_ID', how='inner')
+
+# Convert merged DataFrames to GeoDataFrames
+gdf_2010s = gpd.GeoDataFrame(merged_2010s, geometry=merged_2010s.geometry)
+gdf_2020s = gpd.GeoDataFrame(merged_2020s, geometry=merged_2020s.geometry)
+
+# Save the GeoDataFrames as shapefiles
+gdf_2010s.to_file('merged_2010s.shp')
+gdf_2020s.to_file('merged_2020s.shp')

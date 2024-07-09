@@ -24,15 +24,13 @@ def clean_csv(df, year):
         'B03002_001E': 'Total Population',
         'B03002_003E': 'White Population',
         'B03002_004E': 'Black Population',
-        'B03002_005E': 'American Indian Population',
         'B03002_006E': 'Asian Population',
-        'B03002_007E': 'Native Hawaiian and Other Pacific Islander Population',
         'B03002_012E': 'Hispanic or Latino Population'
     }, inplace=True)
-    df['Some other race'] = df['B03002_008E'].astype(float) + df['B03002_009E'].astype(float)
-    df.drop(columns=['B03002_008E', 'B03002_009E'], inplace=True)
-    int_columns = ['Total Population', 'White Population', 'Black Population', 'American Indian Population',
-                   'Asian Population', 'Native Hawaiian and Other Pacific Islander Population', 
+    df['Some other race'] = df['B03002_008E'].astype(float) + df['B03002_009E'].astype(float) + df['B03002_005E'].astype(float) + df['B03002_007E'].astype(float)
+    df.drop(columns=['B03002_008E', 'B03002_009E','B03002_005E', 'B03002_007E' ], inplace=True)
+    int_columns = ['Total Population', 'White Population', 'Black Population',
+                   'Asian Population', 
                    'Hispanic or Latino Population', 'Some other race']
     df[int_columns] = df[int_columns].astype(int)
     df['Year'] = year
@@ -68,6 +66,6 @@ merged_2020s = pd.merge(shapefile_2023, df_2020s, left_on='GEOID', right_on='GEO
 gdf_2010s = gpd.GeoDataFrame(merged_2010s, geometry=merged_2010s.geometry)
 gdf_2020s = gpd.GeoDataFrame(merged_2020s, geometry=merged_2020s.geometry)
 
-# Save the GeoDataFrames as shapefiles
+# save new shapefiles
 gdf_2010s.to_file('merged_2010s.shp')
 gdf_2020s.to_file('merged_2020s.shp')
